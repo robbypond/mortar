@@ -16,52 +16,48 @@
 package mortar;
 
 import android.content.Context;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+import static java.lang.String.format;
 
 public interface MortarScope {
-  String ROOT_NAME = "Root";
-
-  /** Returns the name of this scope. */
-  String getName();
+  final String ROOT_NAME = "Root";
+  final String DIVIDER = ":";
 
   /**
-   * Returns the graph for this scope.
-   *
-   * @throws IllegalStateException if this scope has been destroyed
+   * Returns the name of this scope, used to retrieve it from its parent via {@link
+   * #findChild(String)}.
    */
-  <T> T getObjectGraph();
+  String getName();
+
+  String getPath();
+
+  <T> T getService(String serviceName);
 
   /**
    * Register the given {@link Scoped} instance to have its {@link Scoped#onEnterScope(MortarScope)}
    * and {@link Scoped#onExitScope()} methods called. Redundant registrations are safe,
    * they will not lead to additional calls to these two methods.
    * <p>
-   * Calls to {@link Scoped#onEnterScope(MortarScope) onEnterScope} are dispatched asynchronously if
-   * a {@code register} call is already in progress.
+   * Calls to {@link Scoped#onEnterScope(MortarScope) onEnterScope} are dispatched asynchronously
+   * if a previous {@code register} call is already in progress.
    *
    * @throws IllegalStateException if this scope has been destroyed
    */
   void register(Scoped scoped);
 
   /**
-   * Returns the child instance whose name matches the given, or null if there is none.
+   * Returns the child scope whose name matches the given, or null if there is none.
    *
    * @throws IllegalStateException if this scope has been destroyed
    */
   MortarScope findChild(String name);
 
-  /**
-   * Creates a new child scope based on the given name and subgraph.
-   *
-   * @throws IllegalStateException if this scope has been destroyed
-   */
-  MortarScope createChild(String childName, Object childObjectGraph);
+  Builder buildChild(String name);
 
   /**
-   * Creates a new Context based on the given parent and this scope. e.g.:
-   * <pre><code>
-   * MortarScope childScope = getMortarScope.requireChild(new ChildBlueprint());
-   * MyView newChildView = new MyView(childScope.createContext(getContext());
-   * </code></pre>
+   * Creates a new Context based on the given parent and this scope.
    */
   Context createContext(Context parentContext);
 
@@ -74,4 +70,43 @@ public interface MortarScope {
 
   /** Returns true if this scope has been destroyed, false otherwise. */
   boolean isDestroyed();
+
+  final class Builder {
+    private final String name;
+    private final RealScope parent;
+    private final Map<String, Object> serviceProviders = new LinkedHashMap<>();
+
+    public static Builder ofRoot() {
+      return new Builder(ROOT_NAME, null);
+    }
+
+    Builder(String name, RealScope parent) {
+      this.name = name;
+      this.parent = parent;
+    }
+
+    public Builder withService(String serviceName, Object service) {
+      Object existing = serviceProviders.put(serviceName, service);
+      if (existing != null) {
+        throw new IllegalArgumentException(
+            format("New scope \"%s\" already bound to service %s, cannot be rebound to %s", name,
+                existing, service));
+      }
+      return this;
+    }
+
+    public MortarScope build() {
+      RealScope newScope = new RealScope(name, parent, serviceProviders);
+      if (parent != null) {
+        parent.children.put(name, newScope);
+      }
+      return newScope;
+    }
+  }
+
+  final class Finder {
+    public static MortarScope get(Context context) {
+      return (MortarScope) context.getSystemService(MortarScope.class.getName());
+    }
+  }
 }

@@ -2,19 +2,29 @@ package mortar.dagger2support;
 
 import android.content.Context;
 import java.lang.reflect.Method;
-import mortar.Mortar;
+import mortar.MortarScope;
 
-public class Dagger2 {
+public class DaggerService {
 
-  public static <T> T get(Context context) {
-    return Mortar.getScope(context).getObjectGraph();
+  /**
+   * Caller is required to know the type of the component for this context.
+   */
+  @SuppressWarnings("unchecked") //
+  public static <T> T getDaggerComponent(Context context) {
+    return (T) context.getSystemService(DaggerService.class.getName());
   }
 
   /**
    * Magic method that creates a component with its dependencies set, by reflection. Relies on
    * Dagger2 naming conventions.
    */
-  public static <T> T buildComponent(Class<T> componentClass, Object... dependencies) {
+  public static <T> void createComponentForScope(MortarScope.Builder scopeBuilder,
+      Class<T> componentClass, Object... dependencies) {
+    scopeBuilder.withService(DaggerService.class.getName(),
+        createComponent(componentClass, dependencies));
+  }
+
+  private static <T> T createComponent(Class<T> componentClass, Object... dependencies) {
     String fqn = componentClass.getName();
 
     String packageName = componentClass.getPackage().getName();
