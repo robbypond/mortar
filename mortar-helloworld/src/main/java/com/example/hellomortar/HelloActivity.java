@@ -23,7 +23,6 @@ import mortar.dagger2support.DaggerService;
 
 public class HelloActivity extends Activity {
   private MortarScope activityScope;
-  private BundleServiceRunner bundleServiceRunner;
 
   @Override protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
@@ -39,10 +38,7 @@ public class HelloActivity extends Activity {
       activityScope = activityScopeBuilder.build();
     }
 
-    bundleServiceRunner = BundleServiceRunner.get(this);
-    DaggerService.<Main.Component>getDaggerComponent(this).inject(this);
-    bundleServiceRunner.onCreate(savedInstanceState);
-
+    BundleServiceRunner.get(this).onCreate(savedInstanceState);
     setContentView(R.layout.main_view);
   }
 
@@ -57,7 +53,7 @@ public class HelloActivity extends Activity {
 
   @Override protected void onSaveInstanceState(Bundle outState) {
     super.onSaveInstanceState(outState);
-    bundleServiceRunner.onSaveInstanceState(outState);
+    BundleServiceRunner.get(this).onSaveInstanceState(outState);
   }
 
   @Override protected void onDestroy() {
