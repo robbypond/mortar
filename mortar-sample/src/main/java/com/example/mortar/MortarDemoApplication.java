@@ -16,7 +16,7 @@
 package com.example.mortar;
 
 import android.app.Application;
-import mortar.dagger1support.Dagger1;
+import mortar.dagger1support.ObjectGraphService;
 import com.example.flow.GsonParceler;
 import com.example.flow.util.FlowBundler;
 import com.example.mortar.core.ApplicationModule;
@@ -39,7 +39,7 @@ public class MortarDemoApplication extends Application {
   @Override public void onCreate() {
     super.onCreate();
 
-    rootScope = Dagger1.createRootScope(ObjectGraph.create(new ApplicationModule()));
+    rootScope = ObjectGraphService.createRootScope(ObjectGraph.create(new ApplicationModule()));
   }
 
   public FlowBundler getFlowBundler() {

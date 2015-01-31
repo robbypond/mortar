@@ -4,31 +4,38 @@ import android.app.Activity;
 import android.content.Context;
 import dagger.ObjectGraph;
 import java.util.Collection;
-import mortar.Mortar;
-import mortar.MortarActivityScope;
 import mortar.MortarScope;
+import mortar.bundler.BundleServiceRunner;
 
 /**
  * Provides utility methods for using Mortar with Dagger 1.
  */
-public class Dagger1 {
+public class ObjectGraphService {
+  public static final String SERVICE_NAME = ObjectGraphService.class.getName();
 
   public static MortarScope createRootScope() {
-    return Mortar.createRootScope(ObjectGraph.create());
+    return createRootScope(ObjectGraph.create());
   }
 
   public static MortarScope createRootScope(ObjectGraph objectGraph) {
-    return Mortar.createRootScope(objectGraph);
+    return MortarScope.Builder.ofRoot()
+        .withService(ObjectGraphService.SERVICE_NAME, objectGraph)
+        .build();
   }
 
   public static ObjectGraph getObjectGraph(Context context) {
-    return Mortar.getScope(context).getObjectGraph();
+    return (ObjectGraph) context.getSystemService(ObjectGraphService.SERVICE_NAME);
+  }
+
+  public static ObjectGraph getObjectGraph(MortarScope scope) {
+    return scope.getService(ObjectGraphService.SERVICE_NAME);
   }
 
   /**
-   * A convenience wrapper for {@link Mortar#getScope} to simplify dynamic injection, typically
-   * for {@link Activity} and {@link android.view.View} instances that must be instantiated
-   * by Android.
+   * A convenience wrapper for {@link ObjectGraphService#getObjectGraph} to simplify dynamic
+   * injection,
+   * typically for {@link Activity} and {@link android.view.View} instances that must be
+   * instantiated by Android.
    */
   public static void inject(Context context, Object object) {
     getObjectGraph(context).inject(object);
@@ -48,24 +55,24 @@ public class Dagger1 {
   }
 
   /**
-   * Returns the existing {@link MortarActivityScope} scope for the given {@link Activity}, or
-   * uses the {@link Blueprint} to create one if none is found.
+   * Returns the existing {@link MortarScope} scope for the given {@link Activity}, or
+   * uses the {@link Blueprint} to create one if none is found. The scope will provide
+   * {@link mortar.bundler.BundleService} and {@link BundleServiceRunner}.
    * <p/>
    * It is expected that this method will be called from {@link Activity#onCreate}. Calling
    * it at other times may lead to surprises.
-   * <p/>
-   * This scope can be destroyed by the {@link MortarScope#destroyChild} method on the
-   * given parent.
    */
-  public static MortarActivityScope requireActivityScope(MortarScope parentScope,
-      Blueprint blueprint) {
+  public static MortarScope requireActivityScope(MortarScope parentScope, Blueprint blueprint) {
     String childName = blueprint.getMortarScopeName();
-    MortarActivityScope child = (MortarActivityScope) parentScope.findChild(childName);
+    MortarScope child = parentScope.findChild(childName);
     if (child == null) {
-      ObjectGraph parentGraph = parentScope.getObjectGraph();
+      ObjectGraph parentGraph = parentScope.getService(ObjectGraphService.SERVICE_NAME);
       Object daggerModule = blueprint.getDaggerModule();
       Object childGraph = createSubgraph(parentGraph, daggerModule);
-      child = Mortar.createActivityScope(parentScope, childName, childGraph);
+      MortarScope.Builder builder = parentScope.buildChild(childName)
+          .withService(ObjectGraphService.SERVICE_NAME, childGraph);
+      BundleServiceRunner.createForScope(builder);
+      child = builder.build();
     }
     return child;
   }
@@ -82,10 +89,12 @@ public class Dagger1 {
     String childName = blueprint.getMortarScopeName();
     MortarScope child = parentScope.findChild(childName);
     if (child == null) {
-      ObjectGraph parentGraph = parentScope.getObjectGraph();
+      ObjectGraph parentGraph = parentScope.getService(ObjectGraphService.SERVICE_NAME);
       Object daggerModule = blueprint.getDaggerModule();
       Object childGraph = createSubgraph(parentGraph, daggerModule);
-      child = parentScope.createChild(childName, childGraph);
+      child = parentScope.buildChild(childName)
+          .withService(ObjectGraphService.SERVICE_NAME, childGraph)
+          .build();
     }
     return child;
   }

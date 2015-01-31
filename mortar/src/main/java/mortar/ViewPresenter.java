@@ -20,6 +20,6 @@ import mortar.bundler.BundleService;
 
 public class ViewPresenter<V extends View> extends Presenter<V> {
   @Override protected final BundleService extractBundleService(V view) {
-    return BundleService.Finder.get(view.getContext());
+    return BundleService.getBundleService(view.getContext());
   }
 }

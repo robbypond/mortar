@@ -7,11 +7,11 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import mortar.Mortar;
 import mortar.MortarScope;
-import mortar.dagger1support.Dagger1;
+import mortar.dagger1support.ObjectGraphService;
 
 import static java.lang.String.format;
+import static mortar.dagger1support.ObjectGraphService.getObjectGraph;
 
 /**
  * Creates {@link MortarScope}s for screens that may be annotated with {@link WithModuleFactory},
@@ -27,7 +27,7 @@ public class ScreenScoper {
   private final Map<Class, ModuleFactory> moduleFactoryCache = new LinkedHashMap<>();
 
   public MortarScope getScreenScope(Context context, String name, Object screen) {
-    MortarScope parentScope = Mortar.getScope(context);
+    MortarScope parentScope = MortarScope.Finder.getScope(context);
     return getScreenScope(context.getResources(), parentScope, name, screen);
   }
 
@@ -48,11 +48,13 @@ public class ScreenScoper {
       // objects that are annotated even if they don't appear in a module.
       childModule = null;
     }
-    ObjectGraph parentGraph = parentScope.getObjectGraph();
+    ObjectGraph parentGraph = getObjectGraph(parentScope);
     MortarScope childScope = parentScope.findChild(name);
     if (childScope == null) {
-      ObjectGraph childGraph = Dagger1.createSubgraph(parentGraph, childModule);
-      childScope = parentScope.createChild(name, childGraph);
+      ObjectGraph childGraph = ObjectGraphService.createSubgraph(parentGraph, childModule);
+      childScope = parentScope.buildChild(name)
+          .withService(ObjectGraphService.SERVICE_NAME, childGraph)
+          .build();
     }
     return childScope;
   }

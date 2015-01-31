@@ -22,8 +22,9 @@ import java.util.Map;
 import static java.lang.String.format;
 
 public interface MortarScope {
-  final String ROOT_NAME = "Root";
   final String DIVIDER = ":";
+  final String ROOT_NAME = "Root";
+  final String SERVICE_NAME = MortarScope.class.getName();
 
   /**
    * Returns the name of this scope, used to retrieve it from its parent via {@link
@@ -105,8 +106,8 @@ public interface MortarScope {
   }
 
   final class Finder {
-    public static MortarScope get(Context context) {
-      return (MortarScope) context.getSystemService(MortarScope.class.getName());
+    public static MortarScope getScope(Context context) {
+      return (MortarScope) context.getSystemService(MortarScope.SERVICE_NAME);
     }
   }
 }

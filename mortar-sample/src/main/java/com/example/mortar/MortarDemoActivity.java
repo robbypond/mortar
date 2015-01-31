@@ -33,11 +33,9 @@ import flow.HasParent;
 import flow.Path;
 import flow.PathContainerView;
 import javax.inject.Inject;
-import mortar.Mortar;
-import mortar.MortarActivityScope;
 import mortar.MortarScope;
 import mortar.MortarScopeDevHelper;
-import mortar.dagger1support.Dagger1;
+import mortar.dagger1support.ObjectGraphService;
 import rx.functions.Action0;
 
 import static android.content.Intent.ACTION_MAIN;
@@ -56,7 +54,7 @@ public class MortarDemoActivity extends android.app.Activity
   public static class Module {
   }
 
-  private MortarActivityScope activityScope;
+  private MortarScope activityScope;
   private ActionBarOwner.MenuAction actionBarMenuAction;
 
   @Inject ActionBarOwner actionBarOwner;
@@ -95,18 +93,18 @@ public class MortarDemoActivity extends android.app.Activity
 
     flow = getFlowBundler().onCreate(savedInstanceState);
 
-    MortarScope parentScope = Mortar.getScope(getApplication());
+    MortarScope parentScope = MortarScope.Finder.getScope(getApplication());
 
     String scopeName = getLocalClassName() + "-task-" + getTaskId();
 
-    activityScope = (MortarActivityScope) parentScope.findChild(scopeName);
+    activityScope = parentScope.findChild(scopeName);
     if (activityScope == null) {
-      ObjectGraph parentGraph = parentScope.getObjectGraph();
+      ObjectGraph parentGraph = ObjectGraphService.getObjectGraph(parentScope);
       Module activityModule = new Module();
-      ObjectGraph activityGraph = Dagger1.createSubgraph(parentGraph, activityModule);
+      ObjectGraph activityGraph = ObjectGraphService.createSubgraph(parentGraph, activityModule);
       activityScope = Mortar.createActivityScope(parentScope, scopeName, activityGraph);
     }
-    Dagger1.inject(this, this);
+    ObjectGraphService.inject(this, this);
 
     activityScope.onCreate(savedInstanceState);
 

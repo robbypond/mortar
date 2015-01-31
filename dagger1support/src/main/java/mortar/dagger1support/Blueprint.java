@@ -5,14 +5,14 @@ import java.util.Collection;
 import mortar.MortarScope;
 
 /**
- * Defines a scope to be built via {@link Dagger1#requireChild(MortarScope, Blueprint)} or
- * {@link Dagger1#requireActivityScope(MortarScope, Blueprint)}.
+ * Defines a scope to be built via {@link ObjectGraphService#requireChild(MortarScope, Blueprint)} or
+ * {@link ObjectGraphService#requireActivityScope(MortarScope, Blueprint)}.
  */
 public interface Blueprint {
   /**
    * Returns the name of the new scope. This can be used later to {@link
    * MortarScope#findChild(String) find} it in its parent. If {@link
-   * Dagger1#requireChild(MortarScope, Blueprint)} is called again with a {@link
+   * ObjectGraphService#requireChild(MortarScope, Blueprint)} is called again with a {@link
    * Blueprint} of the same name, the original instance will be returned unless it has been
    * {@link MortarScope#destroyChild(MortarScope)}  destroyed}.
    */

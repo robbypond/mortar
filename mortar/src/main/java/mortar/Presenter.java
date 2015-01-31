@@ -56,14 +56,14 @@ public abstract class Presenter<V> {
    * {@link android.view.View#onAttachedToWindow()}. (Redundant calls will safely no-op.) Sets the
    * view that will be returned from {@link #getView()}.
    * <p/>
-   * This presenter will be immediately {@link BundleService#register registered}
+   * This presenter will be immediately {@link BundleServicex#register registered}
    * (or re-registered) with the given view's scope, leading to an immediate call to {@link
    * #onLoad}.
    * <p/>
    * It is expected that {@link #dropView(Object)} will be called with the same argument when the
    * view is no longer active, e.g. from {@link android.view.View#onDetachedFromWindow()}.
    *
-   * @see BundleService#register
+   * @see BundleServicex#register
    */
   public final void takeView(V view) {
     if (view == null) throw new NullPointerException("new view must not be null");

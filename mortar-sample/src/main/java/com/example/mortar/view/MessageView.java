@@ -21,7 +21,7 @@ import android.util.AttributeSet;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.TextView;
-import mortar.dagger1support.Dagger1;
+import mortar.dagger1support.ObjectGraphService;
 import com.example.mortar.R;
 import com.example.mortar.screen.MessageScreen;
 import javax.inject.Inject;
@@ -35,7 +35,7 @@ public class MessageView extends LinearLayout {
   public MessageView(Context context, AttributeSet attrs) {
     super(context, attrs);
     setOrientation(VERTICAL);
-    Dagger1.inject(context, this);
+    ObjectGraphService.inject(context, this);
   }
 
   @Override protected void onFinishInflate() {

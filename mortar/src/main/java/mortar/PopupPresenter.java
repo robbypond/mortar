@@ -24,18 +24,15 @@ import mortar.bundler.BundleService;
  * of {@link #hashCode()} and {@link #equals(Object)} in order for debouncing code in {@link #show}
  * to work properly.
  *
- * When using multiple {@link PopupPresenter}s of the same type in the same view, construct them with
- * {@link #PopupPresenter(String)} to give them a name to distinguish them.
+ * When using multiple {@link PopupPresenter}s of the same type in the same view, construct them
+ * with {@link #PopupPresenter(String)} to give them a name to distinguish them.
  */
 public abstract class PopupPresenter<D extends Parcelable, R> extends Presenter<Popup<D, R>> {
   private static final boolean WITH_FLOURISH = true;
 
-  private D whatToShow;
-
-  // TODO(ray) If we're going to keep the presenters (NO!) the finder should be set via the
-  // constructor to fix some of our current testing woes.
-  private final BundleService.Finder serviceFinder = new BundleService.Finder();
   private final String whatToShowKey;
+
+  private D whatToShow;
 
   /**
    * @param customStateKey custom key name for saving state, useful when you have multiple instance
@@ -82,7 +79,7 @@ public abstract class PopupPresenter<D extends Parcelable, R> extends Presenter<
   abstract protected void onPopupResult(R result);
 
   @Override protected BundleService extractBundleService(Popup<D, R> view) {
-    return serviceFinder.get(view.getContext());
+    return BundleService.getBundleService(view.getContext());
   }
 
   @Override public void dropView(Popup<D, R> view) {

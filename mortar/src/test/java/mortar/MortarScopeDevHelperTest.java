@@ -32,10 +32,10 @@ public class MortarScopeDevHelperTest {
     colonel.buildChild("ZeElderColonel").build();
 
     MortarScope elder = root.buildChild("Elder").build();
-    elder.buildChild("ElderCadet");
-    elder.buildChild("ZeElderCadet");
-    elder.buildChild("ElderElder");
-    elder.buildChild("AnElderCadet");
+    elder.buildChild("ElderCadet").build();
+    elder.buildChild("ZeElderCadet").build();
+    elder.buildChild("ElderElder").build();
+    elder.buildChild("AnElderCadet").build();
 
     String hierarchy = scopeHierarchyToString(root);
     assertThat(hierarchy).isEqualTo("" //

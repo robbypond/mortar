@@ -29,9 +29,9 @@ public interface Bundler {
   String getMortarBundleKey();
 
   /**
-   * Called when this object is {@link BundleService#register registered}, and each time
+   * Called when this object is {@link BundleServicex#register registered}, and each time
    * {@link BundleServiceRunner#onCreate} is called (e.g. after a configuration change like
-   * rotation, or after the app process is respawned). See {@link BundleService#register} for
+   * rotation, or after the app process is respawned). See {@link BundleServicex#register} for
    * details.
    *
    * <p>Note that receivers are likely to outlive multiple activity instances, and so receive

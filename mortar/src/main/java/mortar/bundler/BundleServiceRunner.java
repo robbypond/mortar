@@ -2,47 +2,44 @@ package mortar.bundler;
 
 import android.content.Context;
 import android.os.Bundle;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import mortar.MortarScope;
 import mortar.Presenter;
-import mortar.Scoped;
-
-import static java.lang.String.format;
 
 public class BundleServiceRunner {
-  public static BundleServiceRunner get(Context context) {
+  public static BundleServiceRunner getBundleServiceRunner(Context context) {
     return (BundleServiceRunner) context.getSystemService(BundleServiceRunner.class.getName());
+  }
+
+  public static BundleServiceRunner getBundleServiceRunner(MortarScope scope) {
+    return scope.getService(BundleServiceRunner.class.getName());
   }
 
   public static void createForScope(MortarScope.Builder builder) {
     builder.withService(BundleServiceRunner.class.getName(), new BundleServiceRunner());
   }
 
-  private final Map<String, ScopedBundleService> scopedServices = new LinkedHashMap<>();
+  final Map<String, BundleService> scopedServices = new LinkedHashMap<>();
 
-  private Bundle rootBundle;
+  Bundle rootBundle;
 
-  private enum State {
+  enum State {
     IDLE, LOADING, SAVING
   }
 
-  private State state = State.IDLE;
+  State state = State.IDLE;
 
-  public BundleService getService(MortarScope scope) {
+  public BundleService getBundleService(MortarScope scope) {
     // TODO(ray) assert that the given scope is a child of the one this service runner occupies.
     // Maybe give MortarScope.Builder a getPath method, and
     // if (!scope.getPath().beginsWith(myPath + MortarScope.DIVIDER)) {
     //   throw new IllegalArgumentException()
     // }
 
-    ScopedBundleService service = scopedServices.get(scope.getPath());
+    BundleService service = scopedServices.get(scope.getPath());
     if (service == null) {
-      service = new ScopedBundleService(scope);
+      service = new BundleService(this, scope);
       scopedServices.put(scope.getPath(), service);
       scope.register(service);
     }
@@ -58,8 +55,8 @@ public class BundleServiceRunner {
   public void onCreate(Bundle savedInstanceState) {
     rootBundle = savedInstanceState;
 
-    for (Map.Entry<String, ScopedBundleService> entry : scopedServices.entrySet()) {
-      ScopedBundleService scopedService = entry.getValue();
+    for (Map.Entry<String, BundleService> entry : scopedServices.entrySet()) {
+      BundleService scopedService = entry.getValue();
       scopedService.loadFromRootBundleOnCreate();
     }
     finishLoading();
@@ -77,104 +74,24 @@ public class BundleServiceRunner {
     rootBundle = outState;
 
     state = State.SAVING;
-    for (Map.Entry<String, ScopedBundleService> entry : scopedServices.entrySet()) {
+    for (Map.Entry<String, BundleService> entry : scopedServices.entrySet()) {
       entry.getValue().saveToRootBundle();
     }
     state = State.IDLE;
   }
 
-  private void finishLoading() {
+  void finishLoading() {
     if (state != State.IDLE) throw new AssertionError("Unexpected state " + state);
     state = State.LOADING;
 
     boolean someoneLoaded;
     do {
       someoneLoaded = false;
-      for (ScopedBundleService scopedService : scopedServices.values()) {
+      for (BundleService scopedService : scopedServices.values()) {
         someoneLoaded |= scopedService.doLoading();
       }
     } while (someoneLoaded);
 
     state = State.IDLE;
-  }
-
-  private class ScopedBundleService implements BundleService, Scoped {
-    final MortarScope scope;
-    final Set<Bundler> bundlers = new LinkedHashSet<>();
-
-    Bundle scopeBundle;
-    private List<Bundler> toBeLoaded = new ArrayList<>();
-
-    ScopedBundleService(MortarScope scope) {
-      this.scope = scope;
-    }
-
-    @Override public void onEnterScope(MortarScope scope) {
-      // Nothing to do, we were just created and can't have any registrants yet.
-    }
-
-    @Override public void register(Bundler bundler) {
-      if (bundler == null) throw new NullPointerException("Cannot register null bundler.");
-
-      if (state == State.SAVING) {
-        throw new IllegalStateException("Cannot register during onSave");
-      }
-
-      if (bundlers.add(bundler)) bundler.onEnterScope(scope);
-      String mortarBundleKey = bundler.getMortarBundleKey();
-      if (mortarBundleKey == null || mortarBundleKey.trim().equals("")) {
-        throw new IllegalArgumentException(format("%s has null or empty bundle key", bundler));
-      }
-
-      switch (state) {
-        case IDLE:
-          toBeLoaded.add(bundler);
-          finishLoading();
-          break;
-        case LOADING:
-          if (!toBeLoaded.contains(bundler)) toBeLoaded.add(bundler);
-          break;
-
-        default:
-          throw new AssertionError("Unexpected state " + state);
-      }
-    }
-
-    @Override public void onExitScope() {
-      for (Bundler b : bundlers) b.onExitScope();
-      scopedServices.remove(scope.getPath());
-    }
-
-    /**
-     * Load any {@link Bundler}s that still need it.
-     *
-     * @return true if we did some loading
-     */
-    boolean doLoading() {
-      if (toBeLoaded.isEmpty()) return false;
-      while (!toBeLoaded.isEmpty()) {
-        Bundler next = toBeLoaded.remove(0);
-        Bundle leafBundle =
-            scopeBundle == null ? null : scopeBundle.getBundle(next.getMortarBundleKey());
-        next.onLoad(leafBundle);
-      }
-      return true;
-    }
-
-    void loadFromRootBundleOnCreate() {
-      scopeBundle = rootBundle == null ? null : rootBundle.getBundle(scope.getPath());
-      toBeLoaded.addAll(bundlers);
-    }
-
-    void saveToRootBundle() {
-      scopeBundle = new Bundle();
-      rootBundle.putBundle(scope.getPath(), scopeBundle);
-
-      for (Bundler bundler : bundlers) {
-        Bundle childBundle = new Bundle();
-        scopeBundle.putBundle(bundler.getMortarBundleKey(), childBundle);
-        bundler.onSave(childBundle);
-      }
-    }
   }
 }

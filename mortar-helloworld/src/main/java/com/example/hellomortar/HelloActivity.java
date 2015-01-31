@@ -38,7 +38,7 @@ public class HelloActivity extends Activity {
       activityScope = activityScopeBuilder.build();
     }
 
-    BundleServiceRunner.get(this).onCreate(savedInstanceState);
+    BundleServiceRunner.getBundleServiceRunner(this).onCreate(savedInstanceState);
     setContentView(R.layout.main_view);
   }
 
@@ -53,7 +53,7 @@ public class HelloActivity extends Activity {
 
   @Override protected void onSaveInstanceState(Bundle outState) {
     super.onSaveInstanceState(outState);
-    BundleServiceRunner.get(this).onSaveInstanceState(outState);
+    BundleServiceRunner.getBundleServiceRunner(this).onSaveInstanceState(outState);
   }
 
   @Override protected void onDestroy() {

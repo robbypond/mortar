@@ -18,8 +18,6 @@ package mortar;
 import android.content.Context;
 import android.os.Bundle;
 import android.os.Parcelable;
-import java.util.Random;
-import mortar.bundler.BundleService;
 import mortar.bundler.BundleServiceRunner;
 import org.junit.Before;
 import org.junit.Test;
@@ -30,6 +28,7 @@ import org.mockito.stubbing.Answer;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
+import static mortar.bundler.BundleServiceRunner.getBundleServiceRunner;
 import static org.fest.assertions.api.Assertions.assertThat;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
@@ -74,29 +73,27 @@ public class PopupPresenterTest {
   @Before public void setUp() {
     initMocks(this);
     when(view.getContext()).thenReturn(context);
-    when((context).getSystemService(anyString())).then(returnScope());
-    root = MortarScope.Builder.ofRoot().build();
-    activityScope = newScope();
-    getService(activityScope).onCreate(null);
+    when((context).getSystemService(anyString())).then(returnScopedService());
+
+    newProcess();
+    getBundleServiceRunner(activityScope).onCreate(null);
     presenter = new TestPopupPresenter();
   }
 
-  private Answer<Object> returnScope() {
+  /** Simulate a new proecess by creating brand new scope instances. */
+  private void newProcess() {
+    root = MortarScope.Builder.ofRoot().build();
+    MortarScope.Builder builder = root.buildChild("activity");
+    BundleServiceRunner.createForScope(builder);
+    activityScope = builder.build();
+  }
+
+  private Answer<Object> returnScopedService() {
     return new Answer<Object>() {
       @Override public Object answer(InvocationOnMock invocation) throws Throwable {
-        return activityScope;
+        return activityScope.getService((String) invocation.getArguments()[0]);
       }
     };
-  }
-
-  private MortarScope newScope() {
-    MortarScope.Builder builder = root.buildChild("activity" + new Random().nextInt());
-    BundleServiceRunner.createForScope(builder);
-    return builder.build();
-  }
-
-  private BundleServiceRunner getService(MortarScope scope) {
-    return (BundleServiceRunner) scope.getService(BundleService.class.getName());
   }
 
   @Test public void takeViewDoesNotShowView() {
@@ -166,10 +163,10 @@ public class PopupPresenterTest {
     presenter.show(info);
 
     Bundle state = new Bundle();
-    getService(activityScope).onSaveInstanceState(state);
+    getBundleServiceRunner(activityScope).onSaveInstanceState(state);
 
-    activityScope = newScope();
-    getService(activityScope).onCreate(state);
+    newProcess();
+    getBundleServiceRunner(activityScope).onCreate(state);
 
     presenter = new TestPopupPresenter();
     presenter.takeView(view);
@@ -192,9 +189,9 @@ public class PopupPresenterTest {
     presenter2.show(info2);
 
     Bundle state = new Bundle();
-    getService(activityScope).onSaveInstanceState(state);
-    activityScope = newScope();
-    getService(activityScope).onCreate(state);
+    getBundleServiceRunner(activityScope).onSaveInstanceState(state);
+    newProcess();
+    getBundleServiceRunner(activityScope).onCreate(state);
 
     presenter1 = new TestPopupPresenter(customStateKey1);
     presenter1.takeView(view);
