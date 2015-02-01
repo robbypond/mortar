@@ -33,7 +33,7 @@ public class HelloActivity extends Activity {
     if (activityScope == null) {
       MortarScope.Builder activityScopeBuilder = parentScope.buildChild(scopeName);
       DaggerService.createComponentForScope(activityScopeBuilder, Main.Component.class);
-      BundleServiceRunner.createForScope(activityScopeBuilder);
+      BundleServiceRunner.inNewScope(activityScopeBuilder);
 
       activityScope = activityScopeBuilder.build();
     }

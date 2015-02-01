@@ -84,7 +84,7 @@ public class PopupPresenterTest {
   private void newProcess() {
     root = MortarScope.Builder.ofRoot().build();
     MortarScope.Builder builder = root.buildChild("activity");
-    BundleServiceRunner.createForScope(builder);
+    BundleServiceRunner.inNewScope(builder);
     activityScope = builder.build();
   }
 

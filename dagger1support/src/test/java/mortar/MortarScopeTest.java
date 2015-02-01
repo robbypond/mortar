@@ -43,7 +43,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
-@SuppressWarnings("InnerClassMayBeStatic") public class IntertwinedMortarScopeAndObjectGraphTest {
+@SuppressWarnings("InnerClassMayBeStatic") public class MortarScopeTest {
 
   @Mock Context context;
   @Mock Scoped scoped;

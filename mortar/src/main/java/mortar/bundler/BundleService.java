@@ -22,6 +22,7 @@ public class BundleService implements Scoped {
   BundleService(BundleServiceRunner runner, MortarScope scope) {
     this.runner = runner;
     this.scope = scope;
+    scopeBundle = findScopeBundle(runner.rootBundle);
   }
 
   public static BundleService getBundleService(Context context) {

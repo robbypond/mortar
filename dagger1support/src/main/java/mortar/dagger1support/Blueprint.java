@@ -8,6 +8,7 @@ import mortar.MortarScope;
  * Defines a scope to be built via {@link ObjectGraphService#requireChild(MortarScope, Blueprint)} or
  * {@link ObjectGraphService#requireActivityScope(MortarScope, Blueprint)}.
  */
+@Deprecated
 public interface Blueprint {
   /**
    * Returns the name of the new scope. This can be used later to {@link

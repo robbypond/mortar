@@ -16,7 +16,7 @@ public class BundleServiceRunner {
     return scope.getService(BundleServiceRunner.class.getName());
   }
 
-  public static void createForScope(MortarScope.Builder builder) {
+  public static void inNewScope(MortarScope.Builder builder) {
     builder.withService(BundleServiceRunner.class.getName(), new BundleServiceRunner());
   }
 

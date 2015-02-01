@@ -44,7 +44,7 @@ import static org.mockito.MockitoAnnotations.initMocks;
 
 // Robolectric allows us to use Bundles.
 @RunWith(RobolectricTestRunner.class) @Config(manifest = Config.NONE)
-public class IntertwinedBundleServiceAndObjectGraphServiceTest {
+public class MortarActivityScopeTest {
   private static class MyBundler implements Bundler {
     final String name;
 
