@@ -437,8 +437,8 @@ public class MortarActivityScopeTest {
     bundleServiceRunner.onCreate(b);
     bundleServiceRunner.onSaveInstanceState(b);
 
-    assertThat(saves.get()).isEqualTo(1);
     assertThat(destroys.get()).isEqualTo(2);
+    assertThat(saves.get()).isEqualTo(1);
   }
 
   @Test(expected = IllegalStateException.class) public void cannotOnCreateDestroyed() {

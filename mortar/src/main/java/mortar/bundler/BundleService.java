@@ -11,7 +11,7 @@ import mortar.Scoped;
 
 import static java.lang.String.format;
 
-public class BundleService implements Scoped {
+public class BundleService {
   final BundleServiceRunner runner;
   final MortarScope scope;
   final Set<Bundler> bundlers = new LinkedHashSet<>();
@@ -29,22 +29,18 @@ public class BundleService implements Scoped {
     BundleServiceRunner runner = BundleServiceRunner.getBundleServiceRunner(context);
     if (runner == null) {
       throw new IllegalStateException(
-          "You forgot to set up a " + BundleServiceRunner.class.getName());
+          "You forgot to set up a " + BundleServiceRunner.class.getName() + " in your activity");
     }
-    return runner.getBundleService(MortarScope.Finder.getScope(context));
+    return runner.requireBundleService(MortarScope.Finder.getScope(context));
   }
 
   public static BundleService getBundleService(MortarScope scope) {
     BundleServiceRunner runner = BundleServiceRunner.getBundleServiceRunner(scope);
     if (runner == null) {
       throw new IllegalStateException(
-          "You forgot to set up a " + BundleServiceRunner.class.getName());
+          "You forgot to set up a " + BundleServiceRunner.class.getName() + " in your activity");
     }
-    return runner.getBundleService(scope);
-  }
-
-  @Override public void onEnterScope(MortarScope scope) {
-    // Nothing to do, we were just created and can't have any registrants yet.
+    return runner.requireBundleService(scope);
   }
 
   /**
@@ -78,10 +74,14 @@ public class BundleService implements Scoped {
     switch (runner.state) {
       case IDLE:
         toBeLoaded.add(bundler);
+        runner.servicesToBeLoaded.add(this);
         runner.finishLoading();
         break;
       case LOADING:
-        if (!toBeLoaded.contains(bundler)) toBeLoaded.add(bundler);
+        if (!toBeLoaded.contains(bundler)) {
+          toBeLoaded.add(bundler);
+          runner.servicesToBeLoaded.add(this);
+        }
         break;
 
       default:
@@ -89,43 +89,59 @@ public class BundleService implements Scoped {
     }
   }
 
-  @Override public void onExitScope() {
-    for (Bundler b : bundlers) b.onExitScope();
-    runner.scopedServices.remove(scope.getPath());
+  void init() {
+    scope.register(new Scoped() {
+      @Override public void onEnterScope(MortarScope scope) {
+        runner.scopedServices.put(scope.getPath(), BundleService.this);
+      }
+
+      @Override public void onExitScope() {
+        for (Bundler b : bundlers) b.onExitScope();
+        runner.scopedServices.remove(scope.getPath());
+        runner.servicesToBeLoaded.remove(BundleService.this);
+      }
+    });
   }
 
-  /**
-   * Load any {@link Bundler}s that still need it.
-   *
-   * @return true if we did some loading
-   */
-  boolean doLoading() {
-    if (toBeLoaded.isEmpty()) return false;
-    while (!toBeLoaded.isEmpty()) {
-      Bundler next = toBeLoaded.remove(0);
-      Bundle leafBundle =
-          scopeBundle == null ? null : scopeBundle.getBundle(next.getMortarBundleKey());
-      next.onLoad(leafBundle);
-    }
-    return true;
+  boolean needsLoading() {
+    return !toBeLoaded.isEmpty();
   }
 
-  void loadFromRootBundleOnCreate() {
-    scopeBundle = findScopeBundle(runner.rootBundle);
+  void loadOne() {
+    if (toBeLoaded.isEmpty()) return;
+
+    Bundler next = toBeLoaded.remove(0);
+    Bundle leafBundle =
+        scopeBundle == null ? null : scopeBundle.getBundle(next.getMortarBundleKey());
+    next.onLoad(leafBundle);
+  }
+
+  /** @return true if we have clients that now need to be loaded */
+  boolean updateScopedBundleOnCreate(Bundle rootBundle) {
+    scopeBundle = findScopeBundle(rootBundle);
     toBeLoaded.addAll(bundlers);
+    return !toBeLoaded.isEmpty();
   }
 
   private Bundle findScopeBundle(Bundle root) {
     return root == null ? null : root.getBundle(scope.getPath());
   }
 
-  void saveToRootBundle() {
-    scopeBundle = new Bundle();
-    runner.rootBundle.putBundle(scope.getPath(), scopeBundle);
+  void saveToRootBundle(Bundle rootBundle) {
+    scopeBundle = rootBundle.getBundle(scope.getPath());
+
+    if (scopeBundle == null) {
+      scopeBundle = new Bundle();
+      rootBundle.putBundle(scope.getPath(), scopeBundle);
+    }
 
     for (Bundler bundler : bundlers) {
-      Bundle childBundle = new Bundle();
-      scopeBundle.putBundle(bundler.getMortarBundleKey(), childBundle);
+      Bundle childBundle = scopeBundle.getBundle(bundler.getMortarBundleKey());
+      if (childBundle == null) {
+        childBundle = new Bundle();
+        scopeBundle.putBundle(bundler.getMortarBundleKey(), childBundle);
+      }
+
       bundler.onSave(childBundle);
     }
   }

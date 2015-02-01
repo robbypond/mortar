@@ -4,6 +4,8 @@ import android.content.Context;
 import android.os.Bundle;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.NavigableSet;
+import java.util.TreeSet;
 import mortar.MortarScope;
 import mortar.Presenter;
 
@@ -21,6 +23,8 @@ public class BundleServiceRunner {
   }
 
   final Map<String, BundleService> scopedServices = new LinkedHashMap<>();
+  final NavigableSet<BundleService> servicesToBeLoaded =
+      new TreeSet<>(new BundleServiceComparator());
 
   Bundle rootBundle;
 
@@ -30,7 +34,7 @@ public class BundleServiceRunner {
 
   State state = State.IDLE;
 
-  public BundleService getBundleService(MortarScope scope) {
+  BundleService requireBundleService(MortarScope scope) {
     // TODO(ray) assert that the given scope is a child of the one this service runner occupies.
     // Maybe give MortarScope.Builder a getPath method, and
     // if (!scope.getPath().beginsWith(myPath + MortarScope.DIVIDER)) {
@@ -40,8 +44,7 @@ public class BundleServiceRunner {
     BundleService service = scopedServices.get(scope.getPath());
     if (service == null) {
       service = new BundleService(this, scope);
-      scopedServices.put(scope.getPath(), service);
-      scope.register(service);
+      service.init();
     }
     return service;
   }
@@ -57,7 +60,9 @@ public class BundleServiceRunner {
 
     for (Map.Entry<String, BundleService> entry : scopedServices.entrySet()) {
       BundleService scopedService = entry.getValue();
-      scopedService.loadFromRootBundleOnCreate();
+      if (scopedService.updateScopedBundleOnCreate(rootBundle)) {
+        servicesToBeLoaded.add(scopedService);
+      }
     }
     finishLoading();
   }
@@ -75,7 +80,7 @@ public class BundleServiceRunner {
 
     state = State.SAVING;
     for (Map.Entry<String, BundleService> entry : scopedServices.entrySet()) {
-      entry.getValue().saveToRootBundle();
+      entry.getValue().saveToRootBundle(rootBundle);
     }
     state = State.IDLE;
   }
@@ -84,13 +89,11 @@ public class BundleServiceRunner {
     if (state != State.IDLE) throw new AssertionError("Unexpected state " + state);
     state = State.LOADING;
 
-    boolean someoneLoaded;
-    do {
-      someoneLoaded = false;
-      for (BundleService scopedService : scopedServices.values()) {
-        someoneLoaded |= scopedService.doLoading();
-      }
-    } while (someoneLoaded);
+    while (!servicesToBeLoaded.isEmpty()) {
+      BundleService next = servicesToBeLoaded.first();
+      next.loadOne();
+      if (!next.needsLoading()) servicesToBeLoaded.remove(next);
+    }
 
     state = State.IDLE;
   }
