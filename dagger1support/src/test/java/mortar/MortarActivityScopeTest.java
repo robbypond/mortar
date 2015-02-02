@@ -18,6 +18,8 @@ package mortar;
 import android.os.Bundle;
 import dagger.Module;
 import dagger.ObjectGraph;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import mortar.bundler.BundleService;
@@ -32,6 +34,7 @@ import org.mockito.Mock;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
+import static mortar.bundler.BundleService.getBundleService;
 import static mortar.bundler.BundleServiceRunner.getBundleServiceRunner;
 import static mortar.dagger1support.ObjectGraphService.requireChild;
 import static org.fest.assertions.api.Assertions.assertThat;
@@ -114,22 +117,23 @@ public class MortarActivityScopeTest {
 
   @Before public void setUp() {
     initMocks(this);
-    resetScope();
+    newProcess();
   }
 
-  private void resetScope() {
+  /** Simulate a new proecess by creating brand new scope instances. */
+  private void newProcess() {
     MortarScope root = ObjectGraphService.createRootScope(ObjectGraph.create(new MyModule()));
     activityScope = ObjectGraphService.requireActivityScope(root, new MyBlueprint("activity"));
   }
 
   @Test(expected = IllegalArgumentException.class) public void nonNullKeyRequired() {
-    BundleService.getBundleService(activityScope).register(mock(Bundler.class));
+    getBundleService(activityScope).register(mock(Bundler.class));
   }
 
   @Test(expected = IllegalArgumentException.class) public void nonEmptyKeyRequired() {
     Bundler mock = mock(Bundler.class);
     when(mock.getMortarBundleKey()).thenReturn("");
-    BundleService.getBundleService(activityScope).register(mock);
+    getBundleService(activityScope).register(mock);
   }
 
   @Test public void lifeCycle() {
@@ -145,8 +149,8 @@ public class MortarActivityScopeTest {
     MyBundler baker = new MyBundler("baker");
 
     registerScope.register(scoped);
-    BundleService.getBundleService(registerScope).register(able);
-    BundleService.getBundleService(registerScope).register(baker);
+    getBundleService(registerScope).register(able);
+    getBundleService(registerScope).register(baker);
 
     // onEnterScope is called immediately.
     verify(scoped).onEnterScope(registerScope);
@@ -179,7 +183,7 @@ public class MortarActivityScopeTest {
 
     // If the bundler is re-registered, it loads again.
     able.lastLoaded = null;
-    BundleService.getBundleService(registerScope).register(able);
+    getBundleService(registerScope).register(able);
     assertThat(able.lastLoaded).isSameAs(able.lastSaved);
 
     // A new activity instance appears
@@ -206,9 +210,9 @@ public class MortarActivityScopeTest {
 
     void create(Bundle bundle) {
       getBundleServiceRunner(activityScope).onCreate(bundle);
-      BundleService.getBundleService(activityScope).register(rootBundler);
+      getBundleService(activityScope).register(rootBundler);
       childScope = requireChild(activityScope, new MyBlueprint("child"));
-      BundleService.getBundleService(childScope).register(childBundler);
+      getBundleService(childScope).register(childBundler);
     }
   }
 
@@ -226,7 +230,7 @@ public class MortarActivityScopeTest {
 
     // Process death: new copy of the bundle, new scope and activity instances
     bundle = new Bundle(bundle);
-    resetScope();
+    newProcess();
     activity = new FauxActivity();
     activity.create(bundle);
     assertThat(activity.rootBundler.lastLoaded).isNotNull();
@@ -236,10 +240,10 @@ public class MortarActivityScopeTest {
   @Test public void handlesRegisterFromOnLoadBeforeCreate() {
     final MyBundler bundler = new MyBundler("inner");
 
-    BundleService.getBundleService(activityScope).register(new MyBundler("outer") {
+    getBundleService(activityScope).register(new MyBundler("outer") {
       @Override public void onLoad(Bundle savedInstanceState) {
         super.onLoad(savedInstanceState);
-        BundleService.getBundleService(activityScope).register(bundler);
+        getBundleService(activityScope).register(bundler);
       }
     });
 
@@ -259,7 +263,7 @@ public class MortarActivityScopeTest {
     BundleServiceRunner bundleServiceRunner = getBundleServiceRunner(activityScope);
     bundleServiceRunner.onCreate(null);
 
-    final BundleService bundleService = BundleService.getBundleService(activityScope);
+    final BundleService bundleService = getBundleService(activityScope);
     bundleService.register(new MyBundler("outer") {
       @Override public void onLoad(Bundle savedInstanceState) {
         bundleService.register(bundler);
@@ -285,7 +289,7 @@ public class MortarActivityScopeTest {
     BundleServiceRunner bundleServiceRunner = getBundleServiceRunner(activityScope);
     bundleServiceRunner.onCreate(null);
 
-    final BundleService bundleService = BundleService.getBundleService(activityScope);
+    final BundleService bundleService = getBundleService(activityScope);
     bundleService.register(new MyBundler("outer") {
       @Override public void onSave(Bundle outState) {
         super.onSave(outState);
@@ -306,7 +310,7 @@ public class MortarActivityScopeTest {
   @Test public void handlesReregistrationBeforeCreate() {
     final AtomicInteger i = new AtomicInteger(0);
 
-    final BundleService bundleService = BundleService.getBundleService(activityScope);
+    final BundleService bundleService = getBundleService(activityScope);
     bundleService.register(new Bundler() {
       @Override public String getMortarBundleKey() {
         return "key";
@@ -340,7 +344,7 @@ public class MortarActivityScopeTest {
 
     final AtomicInteger i = new AtomicInteger(0);
 
-    final BundleService bundleService = BundleService.getBundleService(activityScope);
+    final BundleService bundleService = getBundleService(activityScope);
     bundleService.register(new Bundler() {
       @Override public String getMortarBundleKey() {
         return "key";
@@ -392,7 +396,7 @@ public class MortarActivityScopeTest {
       }
     }
 
-    BundleService bundleService = BundleService.getBundleService(activityScope);
+    BundleService bundleService = getBundleService(activityScope);
     bundleService.register(new Destroyer());
     bundleService.register(new Destroyer());
 
@@ -428,7 +432,7 @@ public class MortarActivityScopeTest {
       }
     }
 
-    BundleService bundleService = BundleService.getBundleService(activityScope);
+    BundleService bundleService = getBundleService(activityScope);
     bundleService.register(new Destroyer());
     bundleService.register(new Destroyer());
 
@@ -452,51 +456,53 @@ public class MortarActivityScopeTest {
   }
 
   @Test public void deliversStateToBundlerWhenRegisterAfterOnCreate() {
-    MyBundler bundler = new MyBundler("bundler");
-    Bundle bundlerState = new Bundle();
-    bundler.onSave(bundlerState);
-    Bundle scopeState = new Bundle();
-    scopeState.putBundle(bundler.name, bundlerState);
+    final MyBlueprint childBlueprint = new MyBlueprint("childBlueprint");
 
-    getBundleServiceRunner(activityScope).onCreate(scopeState);
-    BundleService.getBundleService(activityScope).register(bundler);
+    class SavesAndRestores extends MyBundler {
+      SavesAndRestores() {
+        super("sNr");
+      }
 
-    assertThat(bundler.lastLoaded).isSameAs(bundlerState);
-  }
+      boolean restored;
 
-  @Test public void deliversChildScopeStateWhenRequireChildDuringRegisterAfterOnCreate() {
-    final MyBundler childScopeBundler = new MyBundler("childScopeBundler");
-    final MyBlueprint childScopeBlueprint = new MyBlueprint("ChildScope");
-
-    // When that bundler is loaded, it creates a child scope and register a bundler on it.
-    MyBundler activityScopeBundler = new MyBundler("activityScopeBundler") {
       @Override public void onLoad(Bundle savedInstanceState) {
         super.onLoad(savedInstanceState);
-        MortarScope childScope = requireChild(activityScope, childScopeBlueprint);
-        BundleService.getBundleService(childScope).register(childScopeBundler);
+        restored = savedInstanceState != null && savedInstanceState.getBoolean("fred");
       }
-    };
 
-    Bundle childScopeBundlerState = new Bundle();
-    childScopeBundler.onSave(childScopeBundlerState);
+      @Override public void onSave(Bundle outState) {
+        super.onSave(outState);
+        outState.putBoolean("fred", true);
+      }
+    }
 
-    Bundle childScopeState = new Bundle();
-    childScopeState.putBundle(childScopeBundler.name, childScopeBundlerState);
+    class Top extends MyBundler {
+      Top() {
+        super("top");
+      }
 
-    Bundle activityScopeBundlerState = new Bundle();
-    activityScopeBundler.onSave(activityScopeBundlerState);
+      final SavesAndRestores child = new SavesAndRestores();
 
-    Bundle activityScopeState = new Bundle();
-    activityScopeState.putBundle(childScopeBlueprint.getMortarScopeName(), childScopeState);
-    activityScopeState.putBundle(activityScopeBundler.name, activityScopeBundlerState);
+      @Override public void onLoad(Bundle savedInstanceState) {
+        super.onLoad(savedInstanceState);
+        MortarScope childScope = ObjectGraphService.requireChild(activityScope, childBlueprint);
+        getBundleService(childScope).register(child);
+      }
+    }
 
-    // activityScope doesn't have any child scope or Bundler yet.
-    getBundleServiceRunner(activityScope).onCreate(activityScopeState);
+    Top originalTop = new Top();
+    getBundleService(activityScope).register(originalTop);
+    assertThat(originalTop.child.restored).isFalse();
 
-    // Loads activityScopeBundler which require a child on activityScope and add a bundler to it.
-    BundleService.getBundleService(activityScope).register(activityScopeBundler);
+    Bundle bundle = new Bundle();
+    getBundleServiceRunner(activityScope).onSaveInstanceState(bundle);
 
-    assertThat(childScopeBundler.lastLoaded).isSameAs(childScopeBundlerState);
+    newProcess();
+    getBundleServiceRunner(activityScope).onCreate(bundle);
+
+    Top newTop = new Top();
+    getBundleService(activityScope).register(newTop);
+    assertThat(newTop.child.restored).isTrue();
   }
 
   /** <a href="https://github.com/square/mortar/issues/46">Issue 46</a> */
@@ -506,17 +512,17 @@ public class MortarActivityScopeTest {
 
     final AtomicBoolean spawnSubScope = new AtomicBoolean(false);
 
-    BundleService.getBundleService(activityScope).register(new MyBundler("outer") {
+    getBundleService(activityScope).register(new MyBundler("outer") {
       @Override public void onLoad(Bundle savedInstanceState) {
         if (spawnSubScope.get()) {
           MortarScope childScope = requireChild(activityScope, new MyBlueprint("child scope"));
-          BundleService.getBundleService(childScope).register(childBundler);
+          getBundleService(childScope).register(childBundler);
           // 1. We're in the middle of loading, so the usual register > load call doesn't happen.
           assertThat(childBundler.loaded).isFalse();
 
           MortarScope grandchildScope =
               requireChild(childScope, new MyBlueprint("grandchild scope"));
-          BundleService.getBundleService(grandchildScope).register(grandChildBundler);
+          getBundleService(grandchildScope).register(grandChildBundler);
           assertThat(grandChildBundler.loaded).isFalse();
         }
       }
@@ -539,15 +545,15 @@ public class MortarActivityScopeTest {
     final MortarScope grandChildScope =
         requireChild(childScope, new MyBlueprint("grandchild scope"));
 
-    BundleService.getBundleService(activityScope).register(new MyBundler("outer") {
+    getBundleService(activityScope).register(new MyBundler("outer") {
       @Override public void onLoad(Bundle savedInstanceState) {
-        BundleService.getBundleService(activityScope).register(peerBundler);
+        getBundleService(activityScope).register(peerBundler);
         assertThat(peerBundler.loaded).isTrue();
 
-        BundleService.getBundleService(childScope).register(childBundler);
+        getBundleService(childScope).register(childBundler);
         assertThat(childBundler.loaded).isFalse();
 
-        BundleService.getBundleService(grandChildScope).register(grandchildBundler);
+        getBundleService(grandChildScope).register(grandchildBundler);
         assertThat(grandchildBundler.loaded).isFalse();
       }
     });
@@ -562,17 +568,17 @@ public class MortarActivityScopeTest {
     final MyBundler childBundler = new MyBundler("child");
     final MyBundler grandchildBundler = new MyBundler("grandchild");
 
-    BundleService.getBundleService(activityScope).register(new MyBundler("outer") {
+    getBundleService(activityScope).register(new MyBundler("outer") {
       @Override public void onLoad(Bundle savedInstanceState) {
-        BundleService.getBundleService(activityScope).register(peerBundler);
+        getBundleService(activityScope).register(peerBundler);
         assertThat(peerBundler.loaded).isTrue();
 
         MortarScope childScope = requireChild(activityScope, new MyBlueprint("child scope"));
-        BundleService.getBundleService(childScope).register(childBundler);
+        getBundleService(childScope).register(childBundler);
         assertThat(childBundler.loaded).isFalse();
 
         MortarScope grandchildScope = requireChild(childScope, new MyBlueprint("grandchild scope"));
-        BundleService.getBundleService(grandchildScope).register(grandchildBundler);
+        getBundleService(grandchildScope).register(grandchildBundler);
         assertThat(grandchildBundler.loaded).isFalse();
       }
     });
@@ -588,7 +594,7 @@ public class MortarActivityScopeTest {
   @Test public void descendantScopesCreatedDuringParentOnLoadAreNotStuckInLoadingMode() {
     final MyBlueprint subscopeBlueprint = new MyBlueprint("subscope");
 
-    BundleService.getBundleService(activityScope).register(new MyBundler("outer") {
+    getBundleService(activityScope).register(new MyBundler("outer") {
       @Override public void onLoad(Bundle savedInstanceState) {
         MortarScope child = requireChild(activityScope, subscopeBlueprint);
         requireChild(child, subscopeBlueprint);
@@ -606,12 +612,12 @@ public class MortarActivityScopeTest {
     getBundleServiceRunner(activityScope).onCreate(null);
     final MyBundler childBundler = new MyBundler("childBundler");
 
-    BundleService.getBundleService(activityScope).register(new MyBundler("root") {
+    getBundleService(activityScope).register(new MyBundler("root") {
       @Override public void onLoad(Bundle savedInstanceState) {
         super.onLoad(savedInstanceState);
 
         MortarScope childScope = requireChild(activityScope, new MyBlueprint("childScope"));
-        BundleService.getBundleService(childScope).register(childBundler);
+        getBundleService(childScope).register(childBundler);
         assertThat(childBundler.loaded).isFalse();
       }
     });
@@ -623,26 +629,41 @@ public class MortarActivityScopeTest {
    * https://github.com/square/mortar/issues/77
    */
   @Test public void bundlersInChildScopesLoadAfterBundlersOnParent() {
+    final List<Bundler> loadingOrder = new ArrayList<>();
+
+    // rootBundler#onLoad creates a child scope and registers childBundler on it,
+    // and after that registers a serviceBundler on the higher level
+    // activity scope. The service must receive onLoad before the child does.
+
     getBundleServiceRunner(activityScope).onCreate(null);
-    final MyBundler service = new MyBundler("service");
+    final MyBundler serviceOnActivityScope = new MyBundler("service") {
+      @Override public void onLoad(Bundle savedInstanceState) {
+        super.onLoad(savedInstanceState);
+        loadingOrder.add(this);
+      }
+    };
 
     final MyBundler childBundler = new MyBundler("childBundler") {
       @Override public void onLoad(Bundle savedInstanceState) {
         super.onLoad(savedInstanceState);
-        assertThat(service.loaded).isTrue();
+        loadingOrder.add(this);
       }
     };
 
-    BundleService.getBundleService(activityScope).register(new MyBundler("root") {
+    MyBundler rootBundler = new MyBundler("root") {
       @Override public void onLoad(Bundle savedInstanceState) {
-        MortarScope childScope = requireChild(activityScope, new MyBlueprint("childScope"));
-        BundleService.getBundleService(childScope).register(childBundler);
-        assertThat(childBundler.loaded).isFalse();
+        loadingOrder.add(this);
 
-        BundleService.getBundleService(activityScope).register(service);
-        assertThat(service.loaded).isTrue();
+        MortarScope childScope = requireChild(activityScope, new MyBlueprint("childScope"));
+        getBundleService(childScope).register(childBundler);
+        getBundleService(activityScope).register(serviceOnActivityScope);
       }
-    });
-    assertThat(childBundler.loaded).isTrue();
+    };
+    getBundleService(activityScope).register(rootBundler);
+
+    assertThat(loadingOrder.size()).isEqualTo(3);
+    assertThat(loadingOrder.get(0)).isSameAs(rootBundler);
+    assertThat(loadingOrder.get(1)).isSameAs(serviceOnActivityScope);
+    assertThat(loadingOrder.get(2)).isSameAs(childBundler);
   }
 }

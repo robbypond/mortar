@@ -53,7 +53,7 @@ public class BundleService {
    * Bundler#onLoad} is
    * triggered by registration. In most cases that initial {@link Bundler#onLoad} is made
    * synchronously during registration. However, if a {@link Bundler} is registered while an
-   * ancestor scope is loading its own {@link Bundler}s, its {@link Bundler#onLoad} will be
+   * ancestor scope is loading its own {@link Bundler}s, the {@link Bundler#onLoad} call will be
    * deferred until all ancestor scopes have completed loading. This ensures that a {@link Bundler}
    * can assume that any dependency registered with a higher-level scope will have been initialized
    * before its own {@link Bundler#onLoad} method fires.
@@ -143,6 +143,9 @@ public class BundleService {
       }
 
       bundler.onSave(childBundle);
+
+      // Short circuit if the scope was destroyed by the save call.
+      if (scope.isDestroyed()) return;
     }
   }
 }
